@@ -18,7 +18,6 @@ M=0
 @diff	// diff=0
 M=0	
 
-
 (LOOP)
 @i	// get i
 D=M
