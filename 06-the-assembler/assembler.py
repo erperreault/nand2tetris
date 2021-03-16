@@ -1,55 +1,35 @@
-#!python3
 # Assembler for Hack assembly language, implemented in Python.
 
 from moduleParser import Parser
 from moduleCode import Code
 from moduleSymbolTable import SymbolTable
+from procedures import firstPass, secondPass
 from data import FILENAME
 
-def firstPass(parser: object, symboltable: object):
-	# Builds the symbol table without other effects.
-	command_address = 0
-	while parser.hasMoreCommands():
-		if parser.commandType() == 'L_COMMAND':
-			symboltable.addEntry(parser.symbol(), command_address)
-		else:
-			command_address += 1
-		parser.advance()
+### Tests ###
 
-def secondPass(parser: object, symboltable: object):
-	# Showtime!
-	ram_slot = 16 # This is our first open RAM slot for @xxx declarations.
-	with open('output.hack', 'w') as output:
-		while parser.hasMoreCommands():
-			if parser.commandType() == 'C_COMMAND':
-				binComp = Code.comp(parser.comp())
-				binDest = Code.dest(parser.dest())
-				binJump = Code.jump(parser.jump())
-				binary = f'111{binComp}{binDest}{binJump}'
-				output.write(binary + '\n')
-			elif parser.commandType() == 'A_COMMAND':
-				symbol = parser.symbol()
-				if symboltable.contains(symbol):
-					address = symboltable.getAddress(symbol)
-					binAddress = bin(int(address))[2:]
-					binary = f'{"0"*(16-len(binAddress))}{binAddress}'
-				elif symbol.isnumeric():
-					binAddress = bin(int(symbol))[2:]
-					binary = f'{"0"*(16-len(str(binAddress)))}{binAddress}'
-				else:
-					symboltable.addEntry(symbol, ram_slot)
-					ram_slot += 1
-					address = symboltable.getAddress(symbol)
-					binAddress = bin(int(address))[2:]
-					binary = f'{"0"*(16-len(str(binAddress)))}{binAddress}'
-				output.write(binary + '\n')
+# Code module #
+assert type(Code.dest('null')) == str
+assert Code.dest('D') == '010'
+assert Code.dest('AMD') == '111'
+assert Code.dest('null') == '000'
 
-			parser.advance()
+# Parser module #
+parser = Parser()
 
+# SymbolTable module #
+symboltable = SymbolTable()
+symboltable.constructor()
+table = symboltable.table
+
+assert type(table) == dict
+assert type(table['SP']) == int
+assert table['SP'] == 0
 
 ### Main ###
 
 if __name__ == '__main__':
+	# Throwaway parser to guide us through first pass.
 	parser = Parser()
 	parser.constructor(FILENAME)
 
@@ -58,11 +38,8 @@ if __name__ == '__main__':
 
 	firstPass(parser, symboltable)
 
+	# Start over but use the symboltable object from first pass.
 	parser = Parser()
 	parser.constructor(FILENAME)
 
 	secondPass(parser, symboltable)
-
-### Tests Below ###
-
-	assert Code.dest('D') == '010'
